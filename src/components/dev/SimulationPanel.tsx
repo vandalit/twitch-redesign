@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Zap, 
   X, 
@@ -13,7 +13,7 @@ import {
   Sparkles, 
   Gift, 
   Flame, 
-  Radio 
+  GripHorizontal 
 } from 'lucide-react';
 import { useSimulationStore } from '@/stores/simulation-store';
 import { useChatStore } from '@/stores/chat-store';
@@ -37,14 +37,81 @@ export function SimulationPanel() {
   const { clearMessages } = useChatStore();
   const [isMinimized, setIsMinimized] = useState(false);
 
+  // Position state for free dragging across the viewport
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Initialize position at bottom-right on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && position === null) {
+      const initialX = Math.max(20, window.innerWidth - 410);
+      const initialY = Math.max(80, window.innerHeight - 480);
+      setPosition({ x: initialX, y: initialY });
+    }
+  }, [position]);
+
+  // Handle Dragging
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only drag when clicking the header area (excluding interactive buttons)
+    if ((e.target as HTMLElement).closest('button, input, select')) return;
+
+    if (panelRef.current) {
+      const rect = panelRef.current.getBoundingClientRect();
+      dragStartOffset.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      setIsDragging(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const panelWidth = panelRef.current?.offsetWidth || 384;
+      const panelHeight = panelRef.current?.offsetHeight || 440;
+
+      // Clamp coordinates within the viewport
+      const newX = Math.max(10, Math.min(window.innerWidth - panelWidth - 10, e.clientX - dragStartOffset.current.x));
+      const newY = Math.max(60, Math.min(window.innerHeight - panelHeight - 10, e.clientY - dragStartOffset.current.y));
+
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   if (activePanel !== 'sim') return null;
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 select-none">
+      <div 
+        className="fixed z-50 select-none cursor-pointer"
+        style={{
+          left: position ? `${Math.min(position.x, window.innerWidth - 220)}px` : undefined,
+          top: position ? `${Math.min(position.y, window.innerHeight - 60)}px` : undefined,
+          bottom: position ? undefined : '1rem',
+          right: position ? undefined : '1rem',
+        }}
+      >
         <button
           onClick={() => setIsMinimized(false)}
-          className="flex items-center gap-2 px-3 py-2 rounded-full bg-amber-500 text-black font-bold text-xs shadow-2xl hover:bg-amber-400 transition-all ring-2 ring-amber-300 animate-bounce"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-amber-500 text-black font-bold text-xs shadow-2xl hover:bg-amber-400 transition-all ring-2 ring-amber-300 animate-pulse"
         >
           <Zap className="w-4 h-4 fill-current" />
           <span>Simulador ({chatSpeed} msg/s)</span>
@@ -54,32 +121,50 @@ export function SimulationPanel() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-88 sm:w-96 rounded-xl border border-amber-500/40 bg-zinc-950/95 backdrop-blur-xl p-4 text-zinc-100 shadow-2xl space-y-4 select-none animate-in fade-in slide-in-from-bottom-4 duration-200">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+    <div 
+      ref={panelRef}
+      style={{
+        left: position ? `${position.x}px` : undefined,
+        top: position ? `${position.y}px` : undefined,
+        bottom: position ? undefined : '1rem',
+        right: position ? undefined : '1rem',
+      }}
+      className={`fixed z-50 w-88 sm:w-96 rounded-xl border border-amber-500/40 bg-zinc-950/95 backdrop-blur-xl p-4 text-zinc-100 shadow-2xl space-y-4 select-none ${
+        isDragging ? 'opacity-90 ring-2 ring-amber-400 shadow-amber-500/20' : ''
+      }`}
+    >
+      {/* Draggable Header */}
+      <div 
+        onMouseDown={handleMouseDown}
+        className="flex items-center justify-between border-b border-zinc-800 pb-2.5 cursor-grab active:cursor-grabbing group"
+        title="Haz clic y arrastra para reposicionar en cualquier parte de la pantalla"
+      >
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded bg-amber-500/20 text-amber-400">
+          <div className="p-1 rounded bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
             <Zap className="w-4 h-4 fill-current" />
           </div>
           <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-white">
-              Simulation Studio
-            </h3>
-            <p className="text-[10px] text-zinc-400">Motor de estrés y flujo de eventos</p>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                Simulation Studio
+              </h3>
+              <GripHorizontal className="w-3.5 h-3.5 text-zinc-500 group-hover:text-amber-400 transition-colors" />
+            </div>
+            <p className="text-[10px] text-zinc-400">Arrastra desde la cabecera para mover</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsMinimized(true)}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800"
+            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             title="Minimizar panel"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={closePanel}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800"
+            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             title="Cerrar panel"
           >
             <X className="w-3.5 h-3.5" />
