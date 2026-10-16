@@ -7,11 +7,13 @@ import {
   Send, 
   Smile, 
   Settings, 
-  ShieldAlert,
-  Users
+  Users, 
+  Zap, 
+  Clock 
 } from 'lucide-react';
 import { useLayout } from '@/context/layout-context';
-import { MOCK_CHAT_MESSAGES, ChatMessage } from '@/data/mock-data';
+import { useChatStore } from '@/stores/chat-store';
+import { useSimulationStore } from '@/stores/simulation-store';
 import { Badge } from '@/components/ui/Badge';
 
 interface ChatColumnProps {
@@ -20,29 +22,58 @@ interface ChatColumnProps {
 
 export function ChatColumn({ channelName }: ChatColumnProps) {
   const { isChatCollapsed, toggleChat } = useLayout();
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT_MESSAGES);
+  const { messages, addMessage, generateRandomMessage } = useChatStore();
+  const { chatSpeed, isSimRunning, isSlowMode, slowModeSeconds, openPanel } = useSimulationStore();
+
   const [inputText, setInputText] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll on new message
+  // Dynamic simulation traffic loop based on chatSpeed
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!isSimRunning || chatSpeed <= 0) return;
+
+    // Interval based on messages per second
+    const intervalMs = Math.max(25, Math.floor(1000 / chatSpeed));
+    const intervalId = setInterval(() => {
+      generateRandomMessage();
+    }, intervalMs);
+
+    return () => clearInterval(intervalId);
+  }, [isSimRunning, chatSpeed, generateRandomMessage]);
+
+  // Auto-scroll to bottom unless user is hovering/reading
+  useEffect(() => {
+    if (!isHovered) {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isHovered]);
+
+  // Cooldown countdown for slow mode
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || cooldown > 0) return;
 
-    const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
+    addMessage({
       username: 'TuUsuario',
       role: 'sub',
       message: inputText.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+    });
 
-    setMessages(prev => [...prev, newMessage]);
     setInputText('');
+
+    if (isSlowMode) {
+      setCooldown(slowModeSeconds);
+    }
   };
 
   if (isChatCollapsed) {
@@ -78,40 +109,55 @@ export function ChatColumn({ channelName }: ChatColumnProps) {
           <ChevronRight className="w-4 h-4" />
         </button>
 
-        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
-          Chat de la transmisión
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+            Chat en vivo
+          </h3>
+          {/* Active speed indicator */}
+          <button
+            onClick={() => openPanel('sim')}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20"
+            title="Ajustar velocidad de simulación"
+          >
+            <Zap className="w-3 h-3 fill-current" />
+            <span>{chatSpeed} m/s</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-1">
           <button className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" title="Usuarios en el chat">
             <Users className="w-4 h-4" />
           </button>
-          <button className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" title="Ajustes de chat">
+          <button 
+            onClick={() => openPanel('sim')} 
+            className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors" 
+            title="Ajustes de simulación"
+          >
             <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* Stream Messages List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 text-xs leading-relaxed select-text">
-        <div className="p-2.5 rounded bg-purple-950/20 border border-purple-900/40 text-[11px] text-purple-300 mb-2">
-          <p className="font-semibold flex items-center gap-1">
-            <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
-            Modo Baseline Activo
-          </p>
-          <p className="text-zinc-400 mt-0.5">
-            Canal de {channelName}. En la Fase 2 este módulo incorporará el selector de capas y velocidad adaptativa.
-          </p>
-        </div>
+      <div 
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="flex-1 overflow-y-auto p-3 space-y-1.5 text-xs leading-relaxed select-text relative"
+      >
+        {isHovered && (
+          <div className="sticky top-0 inset-x-0 z-10 py-1 px-2.5 rounded bg-zinc-900/90 backdrop-blur-sm border border-zinc-700/80 text-[10px] text-amber-300 font-semibold text-center shadow-lg">
+            Chat en pausa por cursor (leyendo)
+          </div>
+        )}
 
         {messages.map((msg) => (
-          <div key={msg.id} className="py-1 hover:bg-zinc-900/60 rounded px-1 -mx-1 transition-colors">
+          <div key={msg.id} className="py-0.5 hover:bg-zinc-900/60 rounded px-1 -mx-1 transition-colors">
             <span className="text-[10px] text-zinc-500 font-mono mr-1.5 select-none">
               {msg.timestamp}
             </span>
 
             {msg.role !== 'viewer' && (
-              <Badge variant="role" roleType={msg.role} className="mr-1.5 text-[10px] py-0 px-1">
+              <Badge variant="role" roleType={msg.role} className="mr-1.5 text-[9px] py-0 px-1">
                 {msg.role}
               </Badge>
             )}
@@ -134,13 +180,21 @@ export function ChatColumn({ channelName }: ChatColumnProps) {
 
       {/* Chat Input Box */}
       <form onSubmit={handleSendMessage} className="p-3 border-t border-zinc-800 bg-zinc-900/50 space-y-2">
+        {isSlowMode && (
+          <div className="flex items-center gap-1.5 text-[10px] text-purple-300 font-medium">
+            <Clock className="w-3 h-3 text-purple-400" />
+            <span>Modo lento activo ({slowModeSeconds}s entre mensajes)</span>
+          </div>
+        )}
+
         <div className="relative">
           <input
             type="text"
-            placeholder="Enviar un mensaje..."
+            placeholder={cooldown > 0 ? `Espera ${cooldown}s para volver a escribir...` : "Enviar un mensaje..."}
             value={inputText}
+            disabled={cooldown > 0}
             onChange={(e) => setInputText(e.target.value)}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50"
           />
           <button
             type="button"
@@ -153,11 +207,11 @@ export function ChatColumn({ channelName }: ChatColumnProps) {
 
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-zinc-500">
-            Presiona Enter para enviar
+            {cooldown > 0 ? `Enfriando: ${cooldown}s` : 'Presiona Enter para enviar'}
           </span>
           <button
             type="submit"
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || cooldown > 0}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold text-white transition-colors"
           >
             <span>Chat</span>

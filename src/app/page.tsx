@@ -34,9 +34,17 @@ export default function HomePage() {
       {/* Hero Carousel Section */}
       <section className="relative rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[320px]">
-          {/* Left: Video Preview Area */}
-          <div className="lg:col-span-8 relative aspect-video lg:aspect-auto bg-black flex items-center justify-center group">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 z-10" />
+          {/* Left: Video Preview Area with live HTML5 video */}
+          <div className="lg:col-span-8 relative aspect-video lg:aspect-auto bg-black flex items-center justify-center group overflow-hidden">
+            <video
+              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-75 transition-opacity"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/30 z-10" />
             
             <div className="text-center p-6 space-y-3 z-10">
               <Badge variant="live">EN VIVO</Badge>

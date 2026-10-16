@@ -16,10 +16,13 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 
+import { useSimulationStore } from '@/stores/simulation-store';
+
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const { toggleDrawer, isDrawerOpen } = useSimulationStore();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,18 +35,34 @@ export function Navbar() {
     <header className="sticky top-0 z-50 flex h-14 w-full items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 text-zinc-100 select-none">
       {/* Left: Brand & Main Navigation */}
       <div className="flex items-center gap-6">
-        <Link 
-          href="/" 
-          className="flex items-center gap-2 group hover:opacity-90 transition-opacity"
-          title="Twitch Redesign Home"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white font-black shadow-md group-hover:bg-purple-500 transition-colors">
-            <Tv className="h-5 w-5" />
-          </div>
-          <span className="hidden font-bold tracking-tight text-lg text-white sm:inline-block">
-            twitch<span className="text-purple-400 font-mono text-xs ml-1 font-semibold px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-800">CLONE</span>
-          </span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link 
+            href="/" 
+            className="flex items-center gap-2 group hover:opacity-90 transition-opacity"
+            title="Twitch Redesign Home"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-600 text-white font-black shadow-md group-hover:bg-purple-500 transition-colors">
+              <Tv className="h-5 w-5" />
+            </div>
+            <span className="hidden font-bold tracking-tight text-lg text-white sm:inline-block">
+              twitch
+            </span>
+          </Link>
+
+          {/* Dev Trigger Badge */}
+          <button
+            onClick={toggleDrawer}
+            className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded transition-all cursor-pointer flex items-center gap-1 ${
+              isDrawerOpen
+                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20 ring-1 ring-amber-400'
+                : 'bg-purple-950/80 text-purple-300 border border-purple-800 hover:bg-purple-900 hover:text-white'
+            }`}
+            title="Abrir Panel Dev / Simulación"
+          >
+            <span>CLONE</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          </button>
+        </div>
 
         <nav className="flex items-center gap-2">
           <Link 

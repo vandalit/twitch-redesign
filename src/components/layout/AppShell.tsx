@@ -3,6 +3,8 @@
 import React, { Suspense } from 'react';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
+import { TopDevDrawer } from '@/components/dev/TopDevDrawer';
+import { SimulationPanel } from '@/components/dev/SimulationPanel';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -14,7 +16,11 @@ export function AppShell({ children }: AppShellProps) {
       <Suspense fallback={<div className="h-14 w-full bg-zinc-950 border-b border-zinc-800" />}>
         <Navbar />
       </Suspense>
-      <div className="flex flex-1 overflow-hidden">
+
+      {/* Top Dev Drawer (Rayito Sim / Lab Pills) */}
+      <TopDevDrawer />
+
+      <div className="flex flex-1 overflow-hidden relative">
         <Suspense fallback={<div className="w-60 bg-zinc-950 border-r border-zinc-800" />}>
           <Sidebar />
         </Suspense>
@@ -23,6 +29,9 @@ export function AppShell({ children }: AppShellProps) {
             {children}
           </Suspense>
         </main>
+
+        {/* Global Floating Simulation Studio Panel */}
+        <SimulationPanel />
       </div>
     </div>
   );
